@@ -1,6 +1,8 @@
 # i2CEncoderV2 Looper
 
-Send OSC messages using multiple i2CEncoderV2
+Send OSC messages using multiple rotary encoders.
+
+i2CEncoderV2 Library: https://github.com/Fattoresaimon/I2CEncoderV2
 
 The looper currently use 4 controllers:
 
