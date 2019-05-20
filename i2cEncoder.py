@@ -42,45 +42,45 @@ try:
         if int_pin.is_pressed:
             encoder.updateStatus()
             change_color = False
-        # Encoder turn right
-        if encoder.readStatus(i2cEncoderLibV2.RINC):
-            change_color = True
+            # Encoder turns right
+            if encoder.readStatus(i2cEncoderLibV2.RINC):
+                change_color = True
 
-        # Encoder turn left
-        if encoder.readStatus(i2cEncoderLibV2.RDEC):
-            change_color = True
+            # Encoder turns left
+            if encoder.readStatus(i2cEncoderLibV2.RDEC):
+                change_color = True
 
-        # Encoder pushed
-        if encoder.readStatus(i2cEncoderLibV2.PUSHP):
-            print("Click")
-            encoder.writeCounter(random.randint(min_val, max_val))
-            change_color = True
+            # Encoder pushed
+            if encoder.readStatus(i2cEncoderLibV2.PUSHP):
+                print("Click")
+                encoder.writeCounter(random.randint(min_val, max_val))
+                change_color = True
 
-        if change_color:
-            counter = encoder.readCounter32()
-            # Default values
-            c = 0
-            color = '0x00'
-            printColor = "Off"
+            if change_color:
+                counter = encoder.readCounter32()
+                # Default values
+                c = 0
+                color = '0x00'
+                printColor = "Off"
 
-            # Set color Red
-            if counter > max_val / 2:
-                color_step = (max_val - counter + 1) ** exp_growth
-                c = int(255 / color_step)
-                color = '0x{:02x}{:02x}{:02x}'.format(c, 0, 0)
-                printColor = "Red"
+                # Set color Red
+                if counter > max_val / 2:
+                    color_step = (max_val - counter + 1) ** exp_growth
+                    c = int(255 / color_step)
+                    color = '0x{:02x}{:02x}{:02x}'.format(c, 0, 0)
+                    printColor = "Red"
 
-            # Set color Blue
-            if counter < max_val / 2:
-                colorStep = counter + 1 ** exp_growth
-                c = int(255 / colorStep)
-                color = '0x{:02x}{:02x}{:02x}'.format(0, 0, c)
-                printColor = "Blue"
+                # Set color Blue
+                if counter < max_val / 2:
+                    colorStep = counter + 1 ** exp_growth
+                    c = int(255 / colorStep)
+                    color = '0x{:02x}{:02x}{:02x}'.format(0, 0, c)
+                    printColor = "Blue"
 
-            if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
-                    not encoder.readStatus(i2cEncoderLibV2.RMIN)):
-                encoder.writeRGBCode(int(color, 0))
-                print('Counter: {} {}: {}'.format(counter, printColor, c))
+                if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
+                        not encoder.readStatus(i2cEncoderLibV2.RMIN)):
+                    encoder.writeRGBCode(int(color, 0))
+                    print('Counter: {} {}: {}'.format(counter, printColor, c))
 
 except KeyboardInterrupt:
     encoder.writeInterruptConfig(0xff)
