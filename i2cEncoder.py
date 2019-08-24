@@ -4,16 +4,26 @@
 # Author: https://github.com/retroriff
 
 import random
+from itertools import cycle
 
 import smbus2
 from gpiozero import Button
 import i2cEncoderLibV2
+#from pythonosc import udp_client
+import argparse
 
 
-def init_encoder(min_val, max_val, device):
+
+MIN_VAL, MAX_VAL = 0, 10.0
+DEVICES = [
+    [0x21, 0x5, 0x41, 0x9, 0x40],
+    [0x11, 0x20, 0x3],
+]
+int_pin = Button(4)
+
+def init_encoder(device):
     bus = smbus2.SMBus(1)
-    print(hex(device))
-    encoder = i2cEncoderLibV2.i2cEncoderLibV2(bus, 0x21)
+    encoder = i2cEncoderLibV2.i2cEncoderLibV2(bus, device)
 
     encconfig = (i2cEncoderLibV2.INT_DATA |
                  i2cEncoderLibV2.WRAP_DISABLE |
@@ -22,77 +32,83 @@ def init_encoder(min_val, max_val, device):
                  i2cEncoderLibV2.RMOD_X1 |
                  i2cEncoderLibV2.RGB_ENCODER)
     encoder.begin(encconfig)
-    encoder.writeCounter(max_val/2)
-    encoder.writeMax(max_val)
-    encoder.writeMin(min_val)
+    encoder.writeCounter(MAX_VAL/2)
+    encoder.writeMax(MAX_VAL)
+    encoder.writeMin(MIN_VAL)
     encoder.writeStep(1)
     encoder.writeInterruptConfig(0xff)
 
     return encoder
 
+def change_color(encoder):
+    EXP_GROWTH = 3
+    counter = encoder.readCounter32()
+    # Default values
+    color = '0x00'
+    printColor = "Off"
 
-int_pin = Button(4)
+    # Set color Red
+    if counter > MAX_VAL / 2:
+        color_step = (MAX_VAL - counter + 1) ** EXP_GROWTH
+        color = '0x{:02x}0000'.format(int(255 / color_step))
+        printColor = "Red"
 
-min_val, max_val = 0, 10.0
-exp_growth = 3
-devices = [[21, 5, 41, 9, 40]]
+    # Set color Blue
+    if counter < MAX_VAL / 2:
+        colorStep = counter + 1 ** EXP_GROWTH 
+        color = '0x0000{:02x}'.format(int(255 / colorStep))
+        printColor = "Blue"
+
+    if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
+            not encoder.readStatus(i2cEncoderLibV2.RMIN)):
+        encoder.writeRGBCode(0)
+        print('Counter: {} {}: {}'.format(counter, printColor, color))
+
+
 encoders = []
+for idx, channel in enumerate(DEVICES):
+    encoders.append([])
+    for value in channel:
+        print(idx)
+        encoders[idx].append(init_encoder(value))
 
-#for i, line in enumerate(devices[0]):
-  #device_int = int(str(devices[0][i]), 16)
-  #encoders[i] = init_encoder(min_val, max_val, device_int)
-  #print("for")
-  #print(hex(encoders[0][i]))
 
-device_int = int(str(21), 16)
-encoder = init_encoder(min_val, max_val, device_int)
+# try: 
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--sp", default = "192.168.8.100", help = "SuperCollider server is on")
+#     parser.add_argument("--port", type = int, default = 4559, help = "The port to listen on")
+#     args = parser.parse_args()
+#     ip = args.sp
+#     print("Looper running on remote_host:", spip, "Port:", args.port)
+#     client = udp_client.SimpleUDPClient(spip, args.port)
+# except AttributeError as err:
+#     print(err.args[0])
+# except OSError as err:
+#     print("OSC server error",err.args)
+
 
 try:
-    while True:
-        # Play: if int_pin.is_pressed:
-        encoder.updateStatus()
-        change_color = False
+    for channel, row in enumerate(cycle(encoders)):
+        for encoder in row:
+            # Play: if int_pin.is_pressed:
+            encoder.updateStatus()
 
-        # Encoder turns right
-        if encoder.readStatus(i2cEncoderLibV2.RINC):
-            change_color = True
+            # Encoder turns right
+            if encoder.readStatus(i2cEncoderLibV2.RINC):
+                change_color(encoder)
 
-        # Encoder turns left
-        if encoder.readStatus(i2cEncoderLibV2.RDEC):
-            change_color = True
+            # Encoder turns left
+            if encoder.readStatus(i2cEncoderLibV2.RDEC):
+                change_color(encoder)
+            
+            # Encoder pushed
+            if encoder.readStatus(i2cEncoderLibV2.PUSHP):
+                print("Click")
+                encoder.writeCounter(random.randint(MIN_VAL, MAX_VAL))
+                change_color(encoder)
 
-        # Encoder pushed
-        if encoder.readStatus(i2cEncoderLibV2.PUSHP):
-            print("Click")
-            encoder.writeCounter(random.randint(min_val, max_val))
-            change_color = True
-
-        if change_color:
-            counter = encoder.readCounter32()
-            # Default values
-            c = 0
-            color = '0x00'
-            printColor = "Off"
-
-            # Set color Red
-            if counter > max_val / 2:
-                color_step = (max_val - counter + 1) ** exp_growth
-                c = int(255 / color_step)
-                color = '0x{:02x}{:02x}{:02x}'.format(c, 0, 0)
-                printColor = "Red"
-
-            # Set color Blue
-            if counter < max_val / 2:
-                colorStep = counter + 1 ** exp_growth
-                c = int(255 / colorStep)
-                color = '0x{:02x}{:02x}{:02x}'.format(0, 0, c)
-                printColor = "Blue"
-
-            if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
-                    not encoder.readStatus(i2cEncoderLibV2.RMIN)):
-                encoder.writeRGBCode(int(color, 0))
-                print('Counter: {} {}: {}'.format(counter, printColor, c))
 
 except KeyboardInterrupt:
-    encoder.writeInterruptConfig(0xff)
-    print("\nExit.")
+    for _, row in enumerate(encoders):
+        for encoder in row:
+            encoder.writeRGBCode(0)
