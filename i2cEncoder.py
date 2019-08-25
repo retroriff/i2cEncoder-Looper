@@ -9,12 +9,10 @@ from itertools import cycle
 import smbus2
 from gpiozero import Button
 import i2cEncoderLibV2
-#from pythonosc import udp_client
-import argparse
 
 
 
-MIN_VAL, MAX_VAL = 0, 10.0
+MIN_VAL, MAX_VAL = 0, 20
 DEVICES = [
     [0x21, 0x5, 0x41, 0x9, 0x40],
     [0x11, 0x20, 0x3],
@@ -32,7 +30,7 @@ def init_encoder(device):
                  i2cEncoderLibV2.RMOD_X1 |
                  i2cEncoderLibV2.RGB_ENCODER)
     encoder.begin(encconfig)
-    encoder.writeCounter(MAX_VAL/2)
+    encoder.writeCounter(int(MAX_VAL / 2)) # Debug Python3: preguntar a Marc
     encoder.writeMax(MAX_VAL)
     encoder.writeMin(MIN_VAL)
     encoder.writeStep(1)
@@ -61,7 +59,7 @@ def change_color(encoder):
 
     if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
             not encoder.readStatus(i2cEncoderLibV2.RMIN)):
-        encoder.writeRGBCode(0)
+        encoder.writeRGBCode(int(color, 0))
         print('Counter: {} {}: {}'.format(counter, printColor, color))
 
 
@@ -69,23 +67,8 @@ encoders = []
 for idx, channel in enumerate(DEVICES):
     encoders.append([])
     for value in channel:
-        print(idx)
+        print(value)
         encoders[idx].append(init_encoder(value))
-
-
-# try: 
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument("--sp", default = "192.168.8.100", help = "SuperCollider server is on")
-#     parser.add_argument("--port", type = int, default = 4559, help = "The port to listen on")
-#     args = parser.parse_args()
-#     ip = args.sp
-#     print("Looper running on remote_host:", spip, "Port:", args.port)
-#     client = udp_client.SimpleUDPClient(spip, args.port)
-# except AttributeError as err:
-#     print(err.args[0])
-# except OSError as err:
-#     print("OSC server error",err.args)
-
 
 try:
     for channel, row in enumerate(cycle(encoders)):
