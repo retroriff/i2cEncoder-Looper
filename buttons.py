@@ -2,8 +2,6 @@
 from gpiozero import Button
 buttons_gpio  = [13, 19, 26, 11, 5, 6, 9, 10, 17, 22, 27]
 button_gpio   = []
-
-# Fails 0
 button_number = 0
 button        = Button( buttons_gpio[button_number] )
 button_status = False
