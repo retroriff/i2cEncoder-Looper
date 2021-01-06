@@ -11,7 +11,21 @@ def load_buttons():
 
 if __name__ == "__main__":
     buttons = load_buttons()
+    button_status = [False] * 11
+    i = 0
 
     for button in cycle(buttons):
         if button.is_pressed:
-            print(f"Button {button.pin} is pressed")
+            if button_status[i] == False:
+                print("button " + str(button.pin) + " pressed")
+                button_status[i] = True
+        else:
+            if button_status[i] == True:
+                print("button " + str(button.pin) + " unpressed")
+                button_status[i] = False
+
+        if i >= 10:
+            i = 0
+        else: 
+            i = i + 1
+
