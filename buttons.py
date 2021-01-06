@@ -1,4 +1,5 @@
 # GPIO Button Test
+import time
 from itertools import cycle
 from gpiozero import Button
 
@@ -11,21 +12,16 @@ def load_buttons():
 
 if __name__ == "__main__":
     buttons = load_buttons()
-    button_status = [False] * 11
-    i = 0
+    button_status = [False] * len(buttons)
 
-    for button in cycle(buttons):
-        if button.is_pressed:
-            if button_status[i] == False:
-                print("button " + str(button.pin) + " pressed")
-                button_status[i] = True
-        else:
-            if button_status[i] == True:
-                print("button " + str(button.pin) + " unpressed")
-                button_status[i] = False
+    for i, button in (enumerate(cycle(buttons)):
+        idx = i % len(buttons)
+        if button.is_pressed and button_status[idx] is False:
+            print("button " + str(button.pin) + " pressed")
+            button_status[idx] = True
 
-        if i >= 10:
-            i = 0
-        else: 
-            i = i + 1
+        elif button_status[idx] is True:
+            print("button " + str(button.pin) + " unpressed")
+            button_status[idx] = False
 
+        time.sleep(0.1)
