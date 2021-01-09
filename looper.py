@@ -17,7 +17,7 @@ from pythonosc import udp_client
 from pythonosc import osc_message_builder
 
 
-print('Running Samplematic on the {}'.format(socket.gethostname().capitalize()))
+
 
 MIN_VAL, MAX_VAL = 0, 20.0
 DEVICES = [
@@ -56,17 +56,6 @@ def init_encoder(device):
     encoder.writeInterruptConfig(0xff)
 
     return encoder
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--ip", default = "127.0.0.1",
-                    help="The ip of the OSC server")
-parser.add_argument("--port", type = int, default = 57121,
-                    help = "The port the OSC server is listening on")
-args = parser.parse_args()
-#client = udp_client.SimpleUDPClient(args.ip, args.port)
-client = udp_client.SimpleUDPClient("192.168.8.130", args.port)
-
 
 def send_msg(address, channel, value):
     msg = osc_message_builder.OscMessageBuilder(address=address)
@@ -109,7 +98,7 @@ def run_encoder(encoder, idx, stepIncrease, channel):
         send_msg(osc_address_pattern, channel, value)
         print('{} {} {} ({}, {})'.format(osc_address_pattern, channel, value, printColor, color))
 
-def read_encoders():
+def read_encoders(encoders):
     for channel, row in enumerate(encoders):
         for idx, encoder in enumerate(row):
             # Play: if play.is_pressed:
@@ -131,11 +120,9 @@ def read_encoders():
                     encoder.writeCounter(random.randint(MIN_VAL, MAX_VAL))
                     run_encoder(encoder, idx, False, channel)
             
-        if channel == len(DEVICES) - 1:
-            break
 
-def read_buttons():
-    for i, button in (enumerate(buttons)):
+def read_buttons(buttons, button_status):
+    for button in buttons:
         idx = i % len(buttons)
         if button.is_pressed:
             if button_status[idx] is False:
@@ -146,26 +133,41 @@ def read_buttons():
                 print("button " + str(button.pin) + " not pressed")
                 button_status[idx] = False
 
-        if i == len(buttons):
-            break
 
 
-buttons       = load_buttons()
-button_status = [False] * len(buttons)
 
-encoders = []
-for idx, channel in enumerate(DEVICES):
-    encoders.append([])
-    for value in channel:
-        encoders[idx].append(init_encoder(value))
+def load_encoders():
+    encoders = []
+    for idx, channel in enumerate(DEVICES):
+        encoders.append([])
+        for value in channel:
+            encoders[idx].append(init_encoder(value))
 
-try:
-    while True:
-        read_buttons()
-        read_encoders()
-        time.sleep(0.01)
+    return encoders
 
-except KeyboardInterrupt:
-    for _, row in enumerate(encoders):
-        for encoder in row:
-            encoder.writeRGBCode(0)
+
+if __name__ == "__main__":
+    print('Running Samplematic on the {}'.format(socket.gethostname().capitalize()))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", default = "127.0.0.1",
+                        help="The ip of the OSC server")
+    parser.add_argument("--port", type = int, default = 57121,
+                        help = "The port the OSC server is listening on")
+    args = parser.parse_args()
+    #client = udp_client.SimpleUDPClient(args.ip, args.port)
+    client = udp_client.SimpleUDPClient("192.168.8.130", args.port)
+
+    encoders = load_encoders()
+    buttons = load_buttons()
+    button_status = [False] * len(buttons)
+
+    try:
+        while True:
+            read_buttons(buttons, button_status)
+            read_encoders(encoders)
+            time.sleep(0.1)
+        
+    except KeyboardInterrupt:
+        for row in encoders:
+            for encoder in row:
+                encoder.writeRGBCode(0)
