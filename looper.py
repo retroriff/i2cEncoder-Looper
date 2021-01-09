@@ -7,6 +7,7 @@
 import argparse
 import random
 import socket
+import time
 from itertools import cycle
 
 import smbus2
@@ -27,9 +28,13 @@ DEVICES = [
     [0x47]
 ]
 wrap_encoder             = [0x71, 0x40, 0x11, 0x15]
-int_pin                  = Button(4)
 osc_address_patterns     = ["/switch", "/amp", "/rate", "/start", "/dur", "/pitch"]
 osc_address_patterns_alt = ["/attach", "/pitch"]
+
+def load_buttons():
+    buttons_gpio = [13, 19, 26, 11, 5, 6, 9, 10, 17, 22, 27]
+
+    return [Button(b_num) for b_num in buttons_gpio]
 
 def init_encoder(device):
     bus = smbus2.SMBus(1)
@@ -70,8 +75,7 @@ def send_msg(address, channel, value):
     msg = msg.build()
     client.send(msg)
 
-
-def run_encoder(encoder, idx, stepIncrease):
+def run_encoder(encoder, idx, stepIncrease, channel):
     EXP_GROWTH = 3
     counter    = encoder.readCounter32()
     value      = counter
@@ -101,26 +105,19 @@ def run_encoder(encoder, idx, stepIncrease):
         send_msg(osc_address_patterns[idx], channel, value)
         print('{} {} {} ({}, {})'.format(osc_address_patterns[idx], channel, value, printColor, color))
 
-
-encoders = []
-for idx, channel in enumerate(DEVICES):
-    encoders.append([])
-    for value in channel:
-        encoders[idx].append(init_encoder(value))
-
-try:
+def read_encoders():
     for channel, row in cycle(enumerate(encoders)):
         for idx, encoder in enumerate(row):
-            # Play: if int_pin.is_pressed:
+            # Play: if play.is_pressed:
             encoder.updateStatus()
 
             # Encoder turns right
             if encoder.readStatus(i2cEncoderLibV2.RINC):
-                run_encoder(encoder, idx, 1)
+                run_encoder(encoder, idx, 1, channel)
 
             # Encoder turns left
             if encoder.readStatus(i2cEncoderLibV2.RDEC):
-                run_encoder(encoder, idx, -1)
+                run_encoder(encoder, idx, -1, channel)
 
             # Encoder is pushed
             if encoder.readStatus(i2cEncoderLibV2.PUSHP):
@@ -128,8 +125,42 @@ try:
                     print("/mute")
                 else:
                     encoder.writeCounter(random.randint(MIN_VAL, MAX_VAL))
-                    run_encoder(encoder, idx, False)
+                    run_encoder(encoder, idx, False, channel)
+            
+        if channel == len(DEVICES) - 1:
+            break
 
+def read_buttons():
+    for i, button in (enumerate(cycle(buttons))):
+        idx = i % len(buttons)
+        if button.is_pressed:
+            if button_status[idx] is False:
+                print("button " + str(button.pin) + " pressed")
+                button_status[idx] = True
+        else:
+            if button_status[idx] is True:
+                print("button " + str(button.pin) + " not pressed")
+                button_status[idx] = False
+
+        if i == len(buttons):
+            break
+
+
+buttons       = load_buttons()
+button_status = [False] * len(buttons)
+
+encoders = []
+for idx, channel in enumerate(DEVICES):
+    encoders.append([])
+    for i, value in enumerate(channel):
+        encoders[idx].append(init_encoder(value))
+        if i == len(channel) -1:
+            break
+try:
+    while True:
+        read_buttons()
+        read_encoders()
+        time.sleep(0.01)
 
 except KeyboardInterrupt:
     for _, row in enumerate(encoders):
