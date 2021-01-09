@@ -96,17 +96,21 @@ def run_encoder(encoder, idx, stepIncrease, channel):
         printColor = "Blue"
     
     # Sample /switch
-    if (idx == 0 and stepIncrease):
+    if (idx == 0 and stepIncrease and channel != 4):
         value = stepIncrease
 
     if (not encoder.readStatus(i2cEncoderLibV2.RMAX) and
             not encoder.readStatus(i2cEncoderLibV2.RMIN)):
         encoder.writeRGBCode(int(color, 0))
-        send_msg(osc_address_patterns[idx], channel, value)
-        print('{} {} {} ({}, {})'.format(osc_address_patterns[idx], channel, value, printColor, color))
+        osc_address_pattern = osc_address_patterns[idx]
+        if channel == 4:
+            osc_address_pattern = osc_address_patterns[5]
+            channel = -1
+        send_msg(osc_address_pattern, channel, value)
+        print('{} {} {} ({}, {})'.format(osc_address_pattern, channel, value, printColor, color))
 
 def read_encoders():
-    for channel, row in cycle(enumerate(encoders)):
+    for channel, row in enumerate(encoders):
         for idx, encoder in enumerate(row):
             # Play: if play.is_pressed:
             encoder.updateStatus()
@@ -131,7 +135,7 @@ def read_encoders():
             break
 
 def read_buttons():
-    for i, button in (enumerate(cycle(buttons))):
+    for i, button in (enumerate(buttons)):
         idx = i % len(buttons)
         if button.is_pressed:
             if button_status[idx] is False:
@@ -152,10 +156,9 @@ button_status = [False] * len(buttons)
 encoders = []
 for idx, channel in enumerate(DEVICES):
     encoders.append([])
-    for i, value in enumerate(channel):
+    for value in channel:
         encoders[idx].append(init_encoder(value))
-        if i == len(channel) -1:
-            break
+
 try:
     while True:
         read_buttons()
