@@ -122,7 +122,7 @@ def read_encoders(encoders):
             
 
 def read_buttons(buttons, button_status):
-    for button in buttons:
+    for i, button in enumerate(buttons):
         idx = i % len(buttons)
         if button.is_pressed:
             if button_status[idx] is False:
